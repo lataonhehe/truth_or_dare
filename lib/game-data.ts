@@ -214,8 +214,8 @@ export const CARD_DECK: Card[] = [
 ];
 
 // Helper functions
-export function getCardsByMode(mode: GameMode, spicyLevel: SpicyLevel): Card[] {
-  let filteredCards = CARD_DECK.filter(card => {
+export function getCardsByMode(mode: GameMode, spicyLevel: SpicyLevel, deck: Card[] = CARD_DECK): Card[] {
+  let filteredCards = deck.filter(card => {
     // Filter by spicy level (allow equal or lower level)
     const levelOrder: SpicyLevel[] = ['chill', 'spicy', 'wild'];
     const maxLevelIndex = levelOrder.indexOf(spicyLevel);
@@ -243,6 +243,17 @@ export function getRandomCard(availableCards: Card[], usedCardIds: string[]): Ca
   }
   
   return unusedCards[Math.floor(Math.random() * unusedCards.length)];
+}
+
+export async function fetchCards(): Promise<Card[]> {
+  try {
+    const res = await fetch('/api/cards');
+    if (!res.ok) throw new Error('API error');
+    const { cards } = await res.json();
+    return cards as Card[];
+  } catch {
+    return CARD_DECK;
+  }
 }
 
 export function getCardColor(type: CardType): string {

@@ -21,12 +21,14 @@ import {
 
 interface GameplayScreenProps {
   gameState: GameState;
+  cardDeck: Card[];
   onBack: () => void;
   onGameEnd: (finalState: GameState) => void;
 }
 
 export function GameplayScreen({
   gameState: initialState,
+  cardDeck,
   onBack,
   onGameEnd,
 }: GameplayScreenProps) {
@@ -36,7 +38,7 @@ export function GameplayScreen({
   const [showExitDialog, setShowExitDialog] = useState(false);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const availableCards = getCardsByMode(gameState.mode, gameState.spicyLevel);
+  const availableCards = getCardsByMode(gameState.mode, gameState.spicyLevel, cardDeck);
 
   useEffect(() => {
     // Load first card

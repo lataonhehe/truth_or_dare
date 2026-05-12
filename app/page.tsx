@@ -6,13 +6,19 @@ import { HomeScreen } from '@/components/home-screen';
 import { GameSetup } from '@/components/game-setup';
 import { GameplayScreen } from '@/components/gameplay-screen';
 import { GameOverScreen } from '@/components/game-over-screen';
-import type { GameMode, SpicyLevel, GameState, Player } from '@/lib/game-data';
+import type { GameMode, SpicyLevel, GameState, Player, Card } from '@/lib/game-data';
+import { fetchCards, CARD_DECK } from '@/lib/game-data';
 
 type Screen = 'splash' | 'home' | 'setup' | 'gameplay' | 'gameover';
 
 export default function Page() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('splash');
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [cardDeck, setCardDeck] = useState<Card[]>(CARD_DECK);
+
+  useEffect(() => {
+    fetchCards().then(setCardDeck);
+  }, []);
 
   const handleSplashComplete = () => {
     setCurrentScreen('home');
@@ -53,6 +59,17 @@ export default function Page() {
   const handleGameEnd = (finalState: GameState) => {
     setGameState(finalState);
     setCurrentScreen('gameover');
+
+    fetch('/api/game-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: finalState.mode,
+        spicyLevel: finalState.spicyLevel,
+        players: finalState.players.map(({ name, completed, skipped }) => ({ name, completed, skipped })),
+        totalRounds: finalState.maxRounds,
+      }),
+    }).catch(() => {});
   };
 
   const handlePlayAgain = () => {
@@ -110,6 +127,7 @@ export default function Page() {
       {currentScreen === 'gameplay' && gameState && (
         <GameplayScreen
           gameState={gameState}
+          cardDeck={cardDeck}
           onBack={handleBackToHome}
           onGameEnd={handleGameEnd}
         />
