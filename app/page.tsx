@@ -32,8 +32,13 @@ export default function Page() {
     mode: GameMode;
     spicyLevel: SpicyLevel;
     players: string[];
+    generatedCards: Card[];
   }) => {
-    // Initialize game state
+    // Merge AI-generated cards at the front so they appear first
+    if (config.generatedCards.length > 0) {
+      setCardDeck([...config.generatedCards, ...cardDeck]);
+    }
+
     const players: Player[] = config.players.map((name, index) => ({
       id: `player-${index}`,
       name,

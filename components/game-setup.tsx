@@ -5,9 +5,10 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, X, Play, Zap } from 'lucide-react';
-import type { GameMode, SpicyLevel } from '@/lib/game-data';
+import { ArrowLeft, Plus, X, Play, Zap, Sparkles, Loader2 } from 'lucide-react';
+import type { GameMode, SpicyLevel, Card } from '@/lib/game-data';
 import { MOCK_PLAYERS } from '@/lib/mock-data';
+import { Textarea } from '@/components/ui/textarea';
 
 interface GameSetupProps {
   onBack: () => void;
@@ -15,6 +16,7 @@ interface GameSetupProps {
     mode: GameMode;
     spicyLevel: SpicyLevel;
     players: string[];
+    generatedCards: Card[];
   }) => void;
 }
 
@@ -23,6 +25,10 @@ export function GameSetup({ onBack, onStartGame }: GameSetupProps) {
   const [spicyLevel, setSpicyLevel] = useState<SpicyLevel>('spicy');
   const [players, setPlayers] = useState<string[]>(['']);
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [aiContext, setAiContext] = useState('');
+  const [generatedCards, setGeneratedCards] = useState<Card[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState('');
 
   const addPlayer = () => {
     if (newPlayerName.trim() && players.length < 10) {
@@ -44,10 +50,30 @@ export function GameSetup({ onBack, onStartGame }: GameSetupProps) {
     setPlayers(MOCK_PLAYERS.map(p => p.name));
   };
 
+  const handleGenerateCards = async () => {
+    if (!aiContext.trim() || isGenerating) return;
+    setIsGenerating(true);
+    setGenerateError('');
+    try {
+      const res = await fetch('/api/cards/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: aiContext, mode, spicyLevel, count: 15 }),
+      });
+      if (!res.ok) throw new Error('Lỗi khi tạo thẻ');
+      const { cards } = await res.json();
+      setGeneratedCards(cards);
+    } catch {
+      setGenerateError('Không thể tạo thẻ. Vui lòng thử lại.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleStart = () => {
     const validPlayers = players.filter((p) => p.trim());
     if (validPlayers.length >= 2) {
-      onStartGame({ mode, spicyLevel, players: validPlayers });
+      onStartGame({ mode, spicyLevel, players: validPlayers, generatedCards });
     }
   };
 
@@ -262,6 +288,65 @@ export function GameSetup({ onBack, onStartGame }: GameSetupProps) {
               Cần ít nhất 2 người chơi để bắt đầu
             </p>
           )}
+        </motion.section>
+
+        {/* AI Card Generator */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <h2 className="mb-1 font-[var(--font-fredoka)] text-xl font-bold">
+            Tạo thẻ bằng AI ✨
+          </h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Mô tả nhóm bạn để AI tạo thẻ cá nhân hóa
+          </p>
+
+          <Textarea
+            value={aiContext}
+            onChange={(e) => setAiContext(e.target.value)}
+            placeholder="Ví dụ: Bạn bè đại học hay đi hát karaoke, có 2 cặp đôi đang yêu nhau, thích phim Marvel..."
+            className="mb-3 min-h-[100px] rounded-3xl border-2 border-border bg-input px-5 py-4 text-base"
+          />
+
+          {generatedCards.length > 0 ? (
+            <div className="mb-3 flex items-center gap-3">
+              <Badge variant="secondary" className="rounded-full px-4 py-2 text-base">
+                <Sparkles className="mr-2 h-4 w-4 text-yellow-400" />
+                Đã tạo {generatedCards.length} thẻ AI
+              </Badge>
+              <button
+                type="button"
+                onClick={() => setGeneratedCards([])}
+                className="text-sm text-muted-foreground hover:text-destructive"
+              >
+                Xóa
+              </button>
+            </div>
+          ) : null}
+
+          {generateError && (
+            <p className="mb-3 text-sm text-destructive">{generateError}</p>
+          )}
+
+          <Button
+            onClick={handleGenerateCards}
+            disabled={!aiContext.trim() || isGenerating}
+            className="glow-pink h-12 w-full rounded-3xl bg-secondary font-[var(--font-fredoka)] text-lg font-bold text-secondary-foreground hover:bg-secondary/90 disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Đang tạo thẻ...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Tạo thẻ AI
+              </>
+            )}
+          </Button>
         </motion.section>
       </div>
 
