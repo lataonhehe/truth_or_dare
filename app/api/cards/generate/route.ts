@@ -5,10 +5,8 @@ const VALID_TYPES: CardType[] = ['truth', 'dare', 'do'];
 const VALID_LEVELS: SpicyLevel[] = ['chill', 'spicy', 'wild'];
 
 function buildSystemPrompt(mode: GameMode, spicyLevel: SpicyLevel): string {
-  const typeRules =
-    mode === 'classic'
-      ? 'Chỉ dùng type "truth" và "dare". KHÔNG dùng type "do".'
-      : 'Chỉ dùng type "dare" và "do". KHÔNG dùng type "truth".';
+  const allowedTypes = mode === 'classic' ? ['truth', 'dare'] : ['dare', 'do'];
+  const allowedTypesText = allowedTypes.map((t) => `"${t}"`).join(', ');
 
   const levelDesc: Record<SpicyLevel, string> = {
     chill: 'vui vẻ, nhẹ nhàng, phù hợp mọi người',
@@ -16,29 +14,46 @@ function buildSystemPrompt(mode: GameMode, spicyLevel: SpicyLevel): string {
     wild: 'rất táo bạo, 18+, không ngại ngùng',
   };
 
-  return `Bạn là game master tạo câu hỏi và thách thức cho game Truth or Dare bằng tiếng Việt.
+  return `Bạn là trình tạo dữ liệu JSON cho game Truth or Dare.
 
-Quy tắc type: ${typeRules}
-Mức độ: ${spicyLevel} — ${levelDesc[spicyLevel]}.
+Mục tiêu: tạo thẻ chơi bằng tiếng Việt theo đúng schema và ràng buộc.
 
-Định nghĩa:
-- "truth": câu hỏi buộc người chơi phải thú nhận sự thật
-- "dare": thách thức người chơi phải làm một việc gì đó
-- "do": câu kiểu "uống nếu bạn từng..." hoặc "ai từng... thì uống"
+Ràng buộc bắt buộc:
+1. Chỉ trả về DUY NHẤT một JSON array hợp lệ, không markdown, không giải thích.
+2. Mỗi phần tử là object với ĐÚNG 4 key theo thứ tự:
+   "type", "content", "spicyLevel", "punishment"
+3. "type" chỉ được là một trong: ${allowedTypesText}
+4. "spicyLevel" luôn phải là "${spicyLevel}".
+5. "content" phải tự nhiên, rõ ràng, không rỗng, không trùng lặp ý giữa các thẻ.
+6. "punishment" là hình phạt ngắn nếu từ chối (ví dụ: "Uống 2 shot", "Hít đất 15 cái").
+7. Không dùng ký tự markdown như \`\`\`, không thêm text trước/sau JSON.
 
-Mỗi thẻ phải có "punishment" — hình phạt nếu từ chối (ví dụ: "Uống 2 shot", "Hít đất 15 cái").
+Ngữ nghĩa type:
+- "truth": câu hỏi buộc người chơi nói thật
+- "dare": thử thách buộc người chơi thực hiện hành động
+- "do": dạng "uống nếu..." hoặc "ai từng... thì uống"
 
-Tất cả nội dung bằng tiếng Việt, sáng tạo, phù hợp với nhóm người chơi được mô tả.
-
-Trả về JSON array thuần túy, KHÔNG có markdown hay text thêm. Format:
-[{"type":"...","content":"...","spicyLevel":"...","punishment":"..."}]`;
+Tone theo mức độ "${spicyLevel}": ${levelDesc[spicyLevel]}.`;
 }
 
 function buildUserPrompt(context: string, spicyLevel: SpicyLevel, count: number): string {
-  return `Mô tả nhóm chơi: ${context}
+  const safeCount = Math.min(Math.max(count, 1), 30);
+  const cleanContext = context.trim().replace(/\s+/g, ' ');
 
-Tạo ${count} thẻ phù hợp với nhóm này. SpicyLevel của tất cả thẻ phải là "${spicyLevel}".
-Tận dụng context về nhóm để tạo câu hỏi/thách thức cá nhân hóa, thú vị và liên quan đến họ.`;
+  return `Tạo chính xác ${safeCount} thẻ.
+
+Thông tin nhóm chơi:
+"""
+${cleanContext}
+"""
+
+Yêu cầu chất lượng:
+- Cá nhân hóa theo context, không viết chung chung.
+- Phân bổ đa dạng tình huống, tránh lặp cấu trúc câu.
+- Ưu tiên câu ngắn gọn, dễ chơi ngay trong buổi tụ tập.
+- Tất cả thẻ phải có "spicyLevel": "${spicyLevel}".
+
+Nhắc lại: chỉ xuất JSON array hợp lệ, không kèm bất kỳ chữ nào khác.`;
 }
 
 export async function POST(request: Request) {
