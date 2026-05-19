@@ -248,10 +248,16 @@ export function getRandomCard(availableCards: Card[], usedCardIds: string[]): Ca
 export async function fetchCards(): Promise<Card[]> {
   try {
     const res = await fetch('/api/cards');
-    if (!res.ok) throw new Error('API error');
+    if (!res.ok) {
+      const errorBody = await res.text();
+      throw new Error(`Fetch /api/cards failed (${res.status}): ${errorBody}`);
+    }
     const { cards } = await res.json();
     return cards as Card[];
-  } catch {
+  } catch (error) {
+    console.error('[game-data] Failed to fetch cards, fallback to local deck', {
+      error,
+    });
     return CARD_DECK;
   }
 }

@@ -74,7 +74,14 @@ export default function Page() {
         players: finalState.players.map(({ name, completed, skipped }) => ({ name, completed, skipped })),
         totalRounds: finalState.maxRounds,
       }),
-    }).catch(() => {});
+    }).catch((error) => {
+      console.error('[Page] Failed to save game history', {
+        mode: finalState.mode,
+        spicyLevel: finalState.spicyLevel,
+        playerCount: finalState.players.length,
+        error,
+      });
+    });
   };
 
   const handlePlayAgain = () => {

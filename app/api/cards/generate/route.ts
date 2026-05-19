@@ -42,71 +42,93 @@ Tận dụng context về nhóm để tạo câu hỏi/thách thức cá nhân h
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const { context, mode, spicyLevel, count = 15 } = body as {
-    context: string;
-    mode: GameMode;
-    spicyLevel: SpicyLevel;
-    count?: number;
-  };
-
-  if (!context?.trim()) {
-    return NextResponse.json({ error: 'context is required' }, { status: 400 });
-  }
-
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 500 });
-  }
-
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://spill-it.vercel.app',
-    },
-    body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini',
-      messages: [
-        { role: 'system', content: buildSystemPrompt(mode, spicyLevel) },
-        { role: 'user', content: buildUserPrompt(context, spicyLevel, count) },
-      ],
-      temperature: 0.9,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    return NextResponse.json({ error: err }, { status: 502 });
-  }
-
-  const data = await response.json();
-  const raw = data.choices?.[0]?.message?.content ?? '[]';
-
-  let parsed: unknown[];
   try {
-    // Extract the first JSON array found in the response (handles markdown, thinking tags, wrapped objects)
-    const match = raw.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error('No JSON array found');
-    parsed = JSON.parse(match[0]);
-    if (!Array.isArray(parsed)) throw new Error('Not an array');
-  } catch {
-    return NextResponse.json({ error: 'Failed to parse LLM response' }, { status: 502 });
+    const body = await request.json();
+    const { context, mode, spicyLevel, count = 15 } = body as {
+      context: string;
+      mode: GameMode;
+      spicyLevel: SpicyLevel;
+      count?: number;
+    };
+
+    if (!context?.trim()) {
+      console.error('[cards/generate] Missing required context in request body');
+      return NextResponse.json({ error: 'context is required' }, { status: 400 });
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      console.error('[cards/generate] OPENROUTER_API_KEY is not configured');
+      return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 500 });
+    }
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://spill-it.vercel.app',
+      },
+      body: JSON.stringify({
+        model: process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini',
+        messages: [
+          { role: 'system', content: buildSystemPrompt(mode, spicyLevel) },
+          { role: 'user', content: buildUserPrompt(context, spicyLevel, count) },
+        ],
+        temperature: 0.9,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('[cards/generate] OpenRouter request failed', {
+        status: response.status,
+        statusText: response.statusText,
+        mode,
+        spicyLevel,
+        count,
+        responseBody: err,
+      });
+      return NextResponse.json({ error: err }, { status: 502 });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content ?? '[]';
+
+    let parsed: unknown[];
+    try {
+      // Extract the first JSON array found in the response (handles markdown, thinking tags, wrapped objects)
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (!match) throw new Error('No JSON array found');
+      parsed = JSON.parse(match[0]);
+      if (!Array.isArray(parsed)) throw new Error('Not an array');
+    } catch (error) {
+      console.error('[cards/generate] Failed to parse LLM response', {
+        mode,
+        spicyLevel,
+        count,
+        rawPreview: raw.slice(0, 1000),
+        error,
+      });
+      return NextResponse.json({ error: 'Failed to parse LLM response' }, { status: 502 });
+    }
+
+    const validTypes = new Set<string>(VALID_TYPES);
+    const validLevels = new Set<string>(VALID_LEVELS);
+
+    const cards: Card[] = (parsed as Record<string, string>[])
+      .filter((c) => validTypes.has(c.type) && validLevels.has(c.spicyLevel) && c.content)
+      .map((c, i) => ({
+        id: `ai-${Date.now()}-${i}`,
+        type: c.type as CardType,
+        content: c.content,
+        spicyLevel: c.spicyLevel as SpicyLevel,
+        punishment: c.punishment || undefined,
+      }));
+
+    return NextResponse.json({ cards });
+  } catch (error) {
+    console.error('[cards/generate] Unexpected server error', { error });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  const validTypes = new Set<string>(VALID_TYPES);
-  const validLevels = new Set<string>(VALID_LEVELS);
-
-  const cards: Card[] = (parsed as Record<string, string>[])
-    .filter((c) => validTypes.has(c.type) && validLevels.has(c.spicyLevel) && c.content)
-    .map((c, i) => ({
-      id: `ai-${Date.now()}-${i}`,
-      type: c.type as CardType,
-      content: c.content,
-      spicyLevel: c.spicyLevel as SpicyLevel,
-      punishment: c.punishment || undefined,
-    }));
-
-  return NextResponse.json({ cards });
 }

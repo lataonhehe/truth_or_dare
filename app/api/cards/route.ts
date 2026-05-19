@@ -8,6 +8,11 @@ export async function GET() {
     .select('id, type, content, spicy_level, punishment');
 
   if (error || !data || data.length === 0) {
+    console.error('[cards] Falling back to local deck', {
+      supabaseError: error?.message ?? null,
+      hasData: Boolean(data),
+      rowCount: data?.length ?? 0,
+    });
     return NextResponse.json({ cards: CARD_DECK, source: 'local' });
   }
 

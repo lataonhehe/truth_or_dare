@@ -60,10 +60,19 @@ export function GameSetup({ onBack, onStartGame }: GameSetupProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ context: aiContext, mode, spicyLevel, count: 15 }),
       });
-      if (!res.ok) throw new Error('Lỗi khi tạo thẻ');
+      if (!res.ok) {
+        const errorBody = await res.text();
+        throw new Error(`Generate cards failed (${res.status}): ${errorBody}`);
+      }
       const { cards } = await res.json();
       setGeneratedCards(cards);
-    } catch {
+    } catch (error) {
+      console.error('[GameSetup] Failed to generate cards', {
+        mode,
+        spicyLevel,
+        contextLength: aiContext.trim().length,
+        error,
+      });
       setGenerateError('Không thể tạo thẻ. Vui lòng thử lại.');
     } finally {
       setIsGenerating(false);
@@ -369,3 +378,4 @@ export function GameSetup({ onBack, onStartGame }: GameSetupProps) {
     </div>
   );
 }
+
