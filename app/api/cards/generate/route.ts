@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { Card, CardType, SpicyLevel, GameMode } from '@/lib/game-data';
+import { supabase } from '@/lib/supabase';
 
 const VALID_TYPES: CardType[] = ['truth', 'dare', 'do'];
 const VALID_LEVELS: SpicyLevel[] = ['chill', 'spicy', 'wild'];
@@ -134,12 +135,42 @@ export async function POST(request: Request) {
     const cards: Card[] = (parsed as Record<string, string>[])
       .filter((c) => validTypes.has(c.type) && validLevels.has(c.spicyLevel) && c.content)
       .map((c, i) => ({
-        id: `ai-${Date.now()}-${i}`,
+        id: `ai-${Date.now()}-${i}-${crypto.randomUUID()}`,
         type: c.type as CardType,
         content: c.content,
         spicyLevel: c.spicyLevel as SpicyLevel,
         punishment: c.punishment || undefined,
       }));
+
+    if (cards.length === 0) {
+      console.error('[cards/generate] No valid cards after filtering parsed output', {
+        mode,
+        spicyLevel,
+        count,
+      });
+      return NextResponse.json({ error: 'No valid cards generated' }, { status: 502 });
+    }
+
+    const { error: insertError } = await supabase.from('cards').insert(
+      cards.map((card) => ({
+        id: card.id,
+        type: card.type,
+        content: card.content,
+        spicy_level: card.spicyLevel,
+        punishment: card.punishment ?? null,
+      }))
+    );
+
+    if (insertError) {
+      console.error('[cards/generate] Failed to persist generated cards', {
+        mode,
+        spicyLevel,
+        count,
+        cardCount: cards.length,
+        error: insertError.message,
+      });
+      return NextResponse.json({ error: 'Failed to save generated cards' }, { status: 500 });
+    }
 
     return NextResponse.json({ cards });
   } catch (error) {

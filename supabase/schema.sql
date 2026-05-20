@@ -10,6 +10,7 @@ CREATE TABLE cards (
 
 ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Cards are publicly readable" ON cards FOR SELECT USING (true);
+CREATE POLICY "Anyone can insert cards" ON cards FOR INSERT WITH CHECK (true);
 
 -- Bảng lịch sử game
 CREATE TABLE game_history (
