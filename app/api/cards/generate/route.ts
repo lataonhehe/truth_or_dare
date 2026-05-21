@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import type { Card, CardType, SpicyLevel, GameMode } from '@/lib/game-data';
 import { supabase } from '@/lib/supabase';
 
@@ -12,7 +12,7 @@ function buildSystemPrompt(mode: GameMode, spicyLevel: SpicyLevel): string {
   const levelDesc: Record<SpicyLevel, string> = {
     chill: 'vui vẻ, nhẹ nhàng, phù hợp mọi người',
     spicy: 'hơi táo bạo, gây cười, có thể hơi embarrassing',
-    wild: 'rất táo bạo, 18+, không ngại ngùng',
+    wild: 'táo bạo hơn nhưng vẫn an toàn và có thể thực hiện ngay',
   };
 
   return `Bạn là trình tạo dữ liệu JSON cho game Truth or Dare.
@@ -26,8 +26,10 @@ Ràng buộc bắt buộc:
 3. "type" chỉ được là một trong: ${allowedTypesText}
 4. "spicyLevel" luôn phải là "${spicyLevel}".
 5. "content" phải tự nhiên, rõ ràng, không rỗng, không trùng lặp ý giữa các thẻ.
-6. "punishment" là hình phạt ngắn nếu từ chối (ví dụ: "Uống 2 shot", "Hít đất 15 cái").
-7. Không dùng ký tự markdown như \`\`\`, không thêm text trước/sau JSON.
+6. "punishment" phải là hình phạt NGẮN, VUI, DỄ CHẤP NHẬN, LÀM ĐƯỢC NGAY (khoảng 5-30 giây).
+7. Ưu tiên hình phạt xã giao vui như: nói giọng hài 10 giây, làm mặt xấu 5 giây, vỗ tay theo nhịp, kể 1 fun fact, hát 1 câu ngắn, tạo dáng ngẫu nhiên, quay 1 vòng.
+8. Tránh hình phạt gây đau, quá sức, nguy hiểm, xúc phạm, vi phạm riêng tư, hoặc ép tương tác nhạy cảm.
+9. Không dùng ký tự markdown như \`\`\`, không thêm text trước/sau JSON.
 
 Ngữ nghĩa type:
 - "truth": câu hỏi buộc người chơi nói thật
@@ -53,6 +55,8 @@ Yêu cầu chất lượng:
 - Phân bổ đa dạng tình huống, tránh lặp cấu trúc câu.
 - Ưu tiên câu ngắn gọn, dễ chơi ngay trong buổi tụ tập.
 - Tất cả thẻ phải có "spicyLevel": "${spicyLevel}".
+- Hình phạt phải vui, nhẹ, dễ đồng ý và làm ngay; hạn chế lặp "uống shot/hít đất".
+- Đa dạng kiểu phạt: mini biểu cảm, mini diễn xuất, mini vận động nhẹ, mini hát/múa/vẽ.
 
 Nhắc lại: chỉ xuất JSON array hợp lệ, không kèm bất kỳ chữ nào khác.`;
 }
