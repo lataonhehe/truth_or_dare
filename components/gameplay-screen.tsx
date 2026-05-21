@@ -3,7 +3,21 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Beer,
+  Camera,
+  Check,
+  CircleHelp,
+  Heart,
+  MessageCircle,
+  Music,
+  Palette,
+  Phone,
+  X,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +32,11 @@ import {
   getCardColor,
   getCardLabel,
 } from '@/lib/game-data';
+import {
+  getCardIconKey,
+  getPunishmentIconKey,
+  type CardIconKey,
+} from '@/lib/card-icon';
 
 interface GameplayScreenProps {
   gameState: GameState;
@@ -25,6 +44,18 @@ interface GameplayScreenProps {
   onBack: () => void;
   onGameEnd: (finalState: GameState) => void;
 }
+
+const CARD_TYPE_ICONS: Record<CardIconKey, LucideIcon> = {
+  question: CircleHelp,
+  action: Zap,
+  drink: Beer,
+  music: Music,
+  art: Palette,
+  phone: Phone,
+  message: MessageCircle,
+  heart: Heart,
+  camera: Camera,
+};
 
 export function GameplayScreen({
   gameState: initialState,
@@ -126,6 +157,11 @@ export function GameplayScreen({
 
   const cardColor = getCardColor(gameState.currentCard.type);
   const cardLabel = getCardLabel(gameState.currentCard.type);
+  const cardIconKey = getCardIconKey(gameState.currentCard);
+  const CardTypeIcon = CARD_TYPE_ICONS[cardIconKey];
+  const punishmentText = gameState.currentCard.punishment || 'Uống 1 ly!';
+  const punishmentIconKey = getPunishmentIconKey(punishmentText);
+  const PunishmentIcon = CARD_TYPE_ICONS[punishmentIconKey];
 
   const cardColorClasses = {
     blue: 'bg-accent text-accent-foreground glow-blue',
@@ -205,7 +241,8 @@ export function GameplayScreen({
             >
               {/* Card Type Badge */}
               <div className="mb-6">
-                <span className="inline-block rounded-full bg-white/20 px-6 py-2 font-[var(--font-fredoka)] text-lg font-bold text-white backdrop-blur">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-6 py-2 font-[var(--font-fredoka)] text-lg font-bold text-white backdrop-blur">
+                  <CardTypeIcon className="h-5 w-5" aria-hidden="true" />
                   {cardLabel}
                 </span>
               </div>
@@ -252,9 +289,11 @@ export function GameplayScreen({
             </DialogTitle>
           </DialogHeader>
           <div className="py-8 text-center">
-            <div className="mb-6 text-7xl">🍺</div>
+            <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <PunishmentIcon className="h-10 w-10" aria-hidden="true" />
+            </div>
             <p className="text-balance font-[var(--font-fredoka)] text-2xl font-bold">
-              {gameState.currentCard.punishment || 'Uống 1 ly!'}
+              {punishmentText}
             </p>
           </div>
           <Button
